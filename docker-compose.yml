@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mongo_bp:
+    image: mongo:latest
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${BLUEPRINT_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${BLUEPRINT_DB_ROOT_PASSWORD}
+    ports:
+      - "${BLUEPRINT_DB_PORT}:27017"
+    volumes:
+      - mongo_volume_bp:/data/db
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mongo_bp
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - MONGODB_URI=mongodb+srv://ammotos:${BLUEPRINT_DB_ROOT_PASSWORD}@cluster0.9v28v.mongodb.net/
+
+volumes:
+  mongo_volume_bp:
