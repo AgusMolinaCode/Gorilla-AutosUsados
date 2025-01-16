@@ -22,4 +22,8 @@ func RegisterPrivateRoutes(r *mux.Router, db database.Service) {
 	privateRouter.HandleFunc("/autos/{id}", func(w http.ResponseWriter, r *http.Request) {
 		private.DeleteAutoHandler(w, r, db)
 	}).Methods("DELETE")
+
+	privateRouter.HandleFunc("/autos/{stock_id}/destacado", func(w http.ResponseWriter, r *http.Request) {
+		private.ToggleFeaturedHandler(w, r, db)
+	}).Methods("POST")
 }
