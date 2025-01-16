@@ -27,3 +27,4 @@ func RegisterPrivateRoutes(r *mux.Router, db database.Service) {
 		private.ToggleFeaturedHandler(w, r, db)
 	}).Methods("POST")
 }
+
