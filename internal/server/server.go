@@ -12,8 +12,8 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"go-gorilla-autos/internal/database"
-	"go-gorilla-autos/internal/server/handlers/private"
-	"go-gorilla-autos/internal/server/handlers/public"
+	"go-gorilla-autos/internal/server/routes/private"
+	"go-gorilla-autos/internal/server/routes/public"
 )
 
 type Server struct {
@@ -44,18 +44,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Apply CORS middleware
 	r.Use(s.corsMiddleware)
 
-	// Ruta pública
-	publicRouter := r.PathPrefix("/api").Subrouter()
-	publicRouter.HandleFunc("/autos", func(w http.ResponseWriter, r *http.Request) {
-		public.GetAutosHandler(w, r, s.db)
-	}).Methods("GET")
+	// Registrar rutas públicas
+	public.RegisterPublicRoutes(r, s.db)
 
-	// Ruta privada
-	privateRouter := r.PathPrefix("/api/admin").Subrouter()
-	privateRouter.Use(s.authMiddleware)
-	privateRouter.HandleFunc("/autos", func(w http.ResponseWriter, r *http.Request) {
-		private.CreateAutoHandler(w, r, s.db)
-	}).Methods("POST")
+	// Registrar rutas privadas
+	private.RegisterPrivateRoutes(r, s.db)
 
 	return r
 }

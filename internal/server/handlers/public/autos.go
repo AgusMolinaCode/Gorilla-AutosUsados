@@ -79,3 +79,36 @@ func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service
 
 	json.NewEncoder(w).Encode(autos)
 }
+
+// GetFeaturedAutosHandler obtiene los autos marcados como destacados
+func GetFeaturedAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Filtrar solo autos destacados
+	filter := bson.M{"featured": true}
+
+	collection := db.Collection("autos")
+	cursor, err := collection.Find(context.Background(), filter)
+	if err != nil {
+		http.Error(w, "Error al obtener los autos destacados", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var autos []models.Auto
+	if err = cursor.All(context.Background(), &autos); err != nil {
+		http.Error(w, "Error al decodificar los autos", http.StatusInternalServerError)
+		return
+	}
+
+	if len(autos) == 0 {
+		response := map[string]string{
+			"mensaje": "No hay autos destacados disponibles",
+		}
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	json.NewEncoder(w).Encode(autos)
+}

@@ -14,4 +14,8 @@ func RegisterPublicRoutes(r *mux.Router, db database.Service) {
 	publicRouter.HandleFunc("/autos", func(w http.ResponseWriter, r *http.Request) {
 		public.GetAutosHandler(w, r, db)
 	}).Methods("GET")
+
+	publicRouter.HandleFunc("/autos/destacados", func(w http.ResponseWriter, r *http.Request) {
+		public.GetFeaturedAutosHandler(w, r, db)
+	}).Methods("GET")
 }
