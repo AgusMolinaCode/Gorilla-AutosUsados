@@ -10,7 +10,7 @@ func MensajeHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"mensaje": "Bienvenido a la Agencia de Autos",
-		"info":    "Para acceder al panel de administración, utilice el código: 123456",
+		"info":    "Para acceder al panel de administración",
 	}
 
 	json.NewEncoder(w).Encode(response)

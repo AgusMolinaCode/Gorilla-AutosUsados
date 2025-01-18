@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
@@ -31,6 +32,11 @@ func CreateAutoHandler(w http.ResponseWriter, r *http.Request, db database.Servi
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Establecer created_at y updated_at
+	now := time.Now()
+	auto.CreatedAt = now
+	auto.UpdatedAt = now
 
 	collection := db.Collection("autos")
 
@@ -115,6 +121,9 @@ func UpdateAutoHandler(w http.ResponseWriter, r *http.Request, db database.Servi
 	// Mantener el stock_id original
 	updateData.StockID = stockID
 
+	// Establecer updated_at
+	updateData.UpdatedAt = time.Now()
+
 	// Actualizar el auto
 	update := bson.M{"$set": updateData}
 	result, err := collection.UpdateOne(context.Background(), bson.M{"stock_id": stockID}, update)
@@ -166,105 +175,6 @@ func DeleteAutoHandler(w http.ResponseWriter, r *http.Request, db database.Servi
 
 	response := map[string]string{
 		"mensaje": "Auto eliminado exitosamente",
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// ToggleFeaturedHandler marca o desmarca un auto como destacado
-func ToggleFeaturedHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Obtener stock_id
-	vars := mux.Vars(r)
-	stockID := vars["stock_id"]
-
-	// Validar formato de stock_id
-	if err := models.ValidateStockID(stockID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	collection := db.Collection("autos")
-
-	// Buscar el auto por stock_id
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
-		return
-	}
-
-	// Cambiar el estado featured
-	update := bson.M{"$set": bson.M{"featured": !auto.Featured}}
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, "Error al actualizar el auto", http.StatusInternalServerError)
-		return
-	}
-
-	response := map[string]interface{}{
-		"mensaje":  "Estado destacado actualizado exitosamente",
-		"featured": !auto.Featured,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// CambiarEstadoAutoHandler cambia el estado de un auto
-func CambiarEstadoAutoHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Obtener stock_id
-	vars := mux.Vars(r)
-	stockID := vars["stock_id"]
-
-	// Validar formato de stock_id
-	if err := models.ValidateStockID(stockID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Decodificar el nuevo estado
-	var estadoRequest struct {
-		Estado string `json:"estado"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&estadoRequest); err != nil {
-		http.Error(w, "Error al decodificar el JSON", http.StatusBadRequest)
-		return
-	}
-
-	// Validar estado
-	if estadoRequest.Estado != models.EstadoDisponible &&
-		estadoRequest.Estado != models.EstadoReservado &&
-		estadoRequest.Estado != models.EstadoVendido {
-		http.Error(w, "Estado inválido", http.StatusBadRequest)
-		return
-	}
-
-	collection := db.Collection("autos")
-
-	// Buscar el auto por stock_id
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
-		return
-	}
-
-	// Actualizar el estado
-	update := bson.M{"$set": bson.M{"estado": estadoRequest.Estado}}
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, "Error al actualizar el estado del auto", http.StatusInternalServerError)
-		return
-	}
-
-	response := map[string]interface{}{
-		"mensaje": "Estado del auto actualizado exitosamente",
-		"estado":  estadoRequest.Estado,
 	}
 
 	json.NewEncoder(w).Encode(response)

@@ -2,10 +2,10 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,7 +14,18 @@ import (
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/server/routes/private"
 	"go-gorilla-autos/internal/server/routes/public"
+
+	"go-gorilla-autos/internal/server/routes/middleware"
+
+	"github.com/joho/godotenv"
 )
+
+func init() {
+	// Cargar variables de entorno desde .env
+	if err := godotenv.Load(); err != nil {
+		log.Println("No se pudo cargar el archivo .env")
+	}
+}
 
 type Server struct {
 	port int
@@ -42,13 +53,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r := mux.NewRouter()
 
 	// Apply CORS middleware
-	r.Use(s.corsMiddleware)
+	r.Use(middleware.CORSMiddleware)
+
+	// Crear un subrouter para rutas privadas
+	privateRouter := r.PathPrefix("/api/admin").Subrouter()
+
+	// Aplicar middleware de autenticación solo a rutas privadas
+	privateRouter.Use(middleware.AuthMiddlewareFunc)
 
 	// Registrar rutas públicas
 	public.RegisterPublicRoutes(r, s.db)
 
 	// Registrar rutas privadas
-	private.RegisterPrivateRoutes(r, s.db)
+	private.RegisterPrivateRoutes(privateRouter, s.db)
 
 	return r
 }
@@ -63,24 +80,6 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Se requiere autorización", http.StatusUnauthorized)
-			return
-		}
-
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != "123456" {
-			http.Error(w, "Código de autorización inválido", http.StatusUnauthorized)
 			return
 		}
 
