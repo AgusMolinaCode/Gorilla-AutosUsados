@@ -51,11 +51,11 @@ func RegisterPrivateRoutes(privateRouter *mux.Router, db database.Service) {
 		reserva.CrearReservaHandler(w, r, db)
 	}).Methods("POST")
 
-	privateRouter.HandleFunc("/autos/{stock_id}/reservations/{reserva_index}", func(w http.ResponseWriter, r *http.Request) {
+	privateRouter.HandleFunc("/autos/{stock_id}/reservations/{reserva_id}", func(w http.ResponseWriter, r *http.Request) {
 		reserva.EditarReservaHandler(w, r, db)
 	}).Methods("PUT")
 
-	privateRouter.HandleFunc("/autos/{stock_id}/reservations/{reserva_index}", func(w http.ResponseWriter, r *http.Request) {
+	privateRouter.HandleFunc("/autos/{stock_id}/reservations/{reserva_id}", func(w http.ResponseWriter, r *http.Request) {
 		reserva.EliminarReservaHandler(w, r, db)
 	}).Methods("DELETE")
 

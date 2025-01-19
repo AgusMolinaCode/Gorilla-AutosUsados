@@ -78,6 +78,7 @@ type MantenimientoInfo struct {
 }
 
 type Reserva struct {
+	ID         string    `json:"id" bson:"id"`
 	Nombre     string    `json:"nombre"`
 	Apellido   string    `json:"apellido"`
 	Telefono   string    `json:"telefono"`

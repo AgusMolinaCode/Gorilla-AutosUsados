@@ -3,8 +3,8 @@ package reserva
 import (
 	"context"
 	"encoding/json"
+	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
 	"go-gorilla-autos/internal/database"
@@ -16,11 +16,25 @@ import (
 
 // Reserva representa la información de una reserva
 type Reserva struct {
+	ID         string    `json:"id" bson:"id"`
 	Nombre     string    `json:"nombre"`
 	Apellido   string    `json:"apellido"`
 	Telefono   string    `json:"telefono"`
 	Comentario string    `json:"comentario"`
 	FechaHora  time.Time `json:"fecha_hora"`
+}
+
+// GenerarIDReserva genera un ID aleatorio para la reserva
+func GenerarIDReserva() string {
+	rand.Seed(time.Now().UnixNano())
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers := "0123456789"
+
+	id := string(letters[rand.Intn(len(letters))]) // Letra aleatoria
+	for i := 0; i < 3; i++ {
+		id += string(numbers[rand.Intn(len(numbers))]) // Tres números aleatorios
+	}
+	return id
 }
 
 // CrearReservaHandler maneja la creación de una nueva reserva
@@ -34,6 +48,9 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 		http.Error(w, "Error al decodificar el JSON", http.StatusBadRequest)
 		return
 	}
+
+	// Generar un ID aleatorio para la reserva
+	reserva.ID = GenerarIDReserva()
 
 	// Validaciones básicas
 	if reserva.Nombre == "" || reserva.Apellido == "" {
@@ -55,7 +72,7 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 		return
 	}
 
-	// Agregar la nueva reserva sin restricciones
+	// Agregar la nueva reserva
 	auto.Reservas = append(auto.Reservas, reserva)
 
 	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
@@ -78,7 +95,7 @@ func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	stockID := vars["stock_id"]
-	reservaIndex, _ := strconv.Atoi(vars["reserva_index"])
+	reservaID := vars["reserva_id"]
 
 	collection := db.Collection("autos")
 	var auto models.Auto
@@ -89,11 +106,25 @@ func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.
 		return
 	}
 
-	if reservaIndex < 0 || reservaIndex >= len(auto.Reservas) {
-		http.Error(w, "Índice de reserva inválido", http.StatusBadRequest)
+	// Buscar la reserva por ID
+	var indexToDelete int
+	found := false
+	for i := range auto.Reservas {
+		if auto.Reservas[i].ID == reservaID {
+			indexToDelete = i
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, "Reserva no encontrada", http.StatusNotFound)
 		return
 	}
-	auto.Reservas = append(auto.Reservas[:reservaIndex], auto.Reservas[reservaIndex+1:]...)
+
+	// Eliminar la reserva
+	auto.Reservas = append(auto.Reservas[:indexToDelete], auto.Reservas[indexToDelete+1:]...)
+
 	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
 	_, err = collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
@@ -111,7 +142,7 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	stockID := vars["stock_id"]
-	reservaIndex, _ := strconv.Atoi(vars["reserva_index"])
+	reservaID := vars["reserva_id"]
 
 	var nuevaReserva models.Reserva
 	if err := json.NewDecoder(r.Body).Decode(&nuevaReserva); err != nil {
@@ -128,11 +159,27 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 		return
 	}
 
-	if reservaIndex < 0 || reservaIndex >= len(auto.Reservas) {
-		http.Error(w, "Índice de reserva inválido", http.StatusBadRequest)
+	// Buscar la reserva por ID
+	var reservaEncontrada *models.Reserva
+	for i := range auto.Reservas {
+		if auto.Reservas[i].ID == reservaID {
+			reservaEncontrada = &auto.Reservas[i]
+			break
+		}
+	}
+
+	if reservaEncontrada == nil {
+		http.Error(w, "Reserva no encontrada", http.StatusNotFound)
 		return
 	}
-	auto.Reservas[reservaIndex] = nuevaReserva
+
+	// Actualizar la reserva
+	reservaEncontrada.Nombre = nuevaReserva.Nombre
+	reservaEncontrada.Apellido = nuevaReserva.Apellido
+	reservaEncontrada.Telefono = nuevaReserva.Telefono
+	reservaEncontrada.Comentario = nuevaReserva.Comentario
+	reservaEncontrada.FechaHora = nuevaReserva.FechaHora
+
 	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
 	_, err = collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
@@ -142,7 +189,7 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 
 	response := map[string]interface{}{
 		"mensaje": "Reserva actualizada exitosamente",
-		"reserva": nuevaReserva,
+		"reserva": reservaEncontrada,
 	}
 	json.NewEncoder(w).Encode(response)
 }
