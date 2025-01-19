@@ -1,0 +1,82 @@
+package reserva
+
+import (
+	"context"
+	"encoding/json"
+	"math/rand"
+	"net/http"
+	"time"
+
+	"go-gorilla-autos/internal/database"
+	"go-gorilla-autos/internal/database/models"
+
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
+)
+
+// GenerarIDReserva genera un ID aleatorio para la reserva
+func GenerarIDReserva() string {
+	rand.Seed(time.Now().UnixNano())
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers := "0123456789"
+
+	id := string(letters[rand.Intn(len(letters))]) // Letra aleatoria
+	for i := 0; i < 3; i++ {
+		id += string(numbers[rand.Intn(len(numbers))]) // Tres números aleatorios
+	}
+	return id
+}
+
+// CrearReservaHandler maneja la creación de una nueva reserva
+func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	stockID := vars["stock_id"]
+
+	var reserva models.Reserva
+	if err := json.NewDecoder(r.Body).Decode(&reserva); err != nil {
+		http.Error(w, "Error al decodificar el JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Generar un ID aleatorio para la reserva
+	reserva.ID = GenerarIDReserva()
+
+	// Validaciones básicas
+	if reserva.Nombre == "" || reserva.Apellido == "" {
+		http.Error(w, "Nombre y apellido son requeridos", http.StatusBadRequest)
+		return
+	}
+
+	if reserva.FechaHora.IsZero() {
+		http.Error(w, "Fecha y hora de reserva son requeridas", http.StatusBadRequest)
+		return
+	}
+
+	collection := db.Collection("autos")
+	var auto models.Auto
+	filter := bson.M{"stock_id": stockID}
+	err := collection.FindOne(context.Background(), filter).Decode(&auto)
+	if err != nil {
+		http.Error(w, "Auto no encontrado", http.StatusNotFound)
+		return
+	}
+
+	// Agregar la nueva reserva
+	auto.Reservas = append(auto.Reservas, reserva)
+
+	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
+	_, err = collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		http.Error(w, "Error al actualizar las reservas", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"mensaje":        "Reserva creada exitosamente",
+		"reserva":        reserva,
+		"total_reservas": len(auto.Reservas),
+	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
