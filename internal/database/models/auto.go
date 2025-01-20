@@ -47,6 +47,8 @@ type Auto struct {
 	EnNegociacion                  *NegociacionInfo   `json:"en_negociacion" bson:"en_negociacion,omitempty"`
 	EnMantenimiento                *MantenimientoInfo `json:"en_mantenimiento" bson:"en_mantenimiento,omitempty"`
 	Reservas                       []Reserva          `json:"reservas" bson:"reservas"`
+	TipoCombustible                string             `json:"tipo_combustible" bson:"tipo_combustible" binding:"required"`
+	Moneda                         string             `json:"moneda" bson:"moneda" binding:"required"`
 }
 
 type ReservadoInfo struct {
@@ -98,6 +100,12 @@ func (a *Auto) ValidateRequired() ([]string, error) {
 	}
 	if a.TipoVenta == "" {
 		missingFields = append(missingFields, "tipo_venta")
+	}
+	if a.TipoCombustible == "" {
+		missingFields = append(missingFields, "tipo_combustible")
+	}
+	if a.Moneda == "" {
+		missingFields = append(missingFields, "moneda")
 	}
 	if a.Año == 0 {
 		missingFields = append(missingFields, "año")

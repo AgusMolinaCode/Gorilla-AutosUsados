@@ -62,6 +62,14 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 		return
 	}
 
+	// Verificar si el cliente ya tiene una reserva para este auto
+	for _, r := range auto.Reservas {
+		if r.Nombre == reserva.Nombre && r.Apellido == reserva.Apellido {
+			http.Error(w, "Ya existe una reserva activa para este cliente y vehículo", http.StatusConflict)
+			return
+		}
+	}
+
 	// Agregar la nueva reserva
 	auto.Reservas = append(auto.Reservas, reserva)
 
