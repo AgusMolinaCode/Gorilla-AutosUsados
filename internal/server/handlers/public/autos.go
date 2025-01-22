@@ -10,6 +10,7 @@ import (
 	"go-gorilla-autos/internal/database/models"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
@@ -98,8 +99,41 @@ func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service
 		filter["descuento"] = bson.M{"$gt": 0} // Solo autos con descuento mayor a 0
 	}
 
+	// Configurar las opciones de ordenamiento
+	opts := options.Find()
+
+	// Ordenar por precio
+	if sort := r.URL.Query().Get("sort_precio"); sort != "" {
+		switch sort {
+		case "asc":
+			opts.SetSort(bson.D{{Key: "precio", Value: 1}}) // Orden ascendente
+		case "desc":
+			opts.SetSort(bson.D{{Key: "precio", Value: -1}}) // Orden descendente
+		}
+	}
+
+	// Ordenar por fecha de publicación
+	if sort := r.URL.Query().Get("sort_fecha"); sort != "" {
+		switch sort {
+		case "nuevo":
+			opts.SetSort(bson.D{{Key: "created_at", Value: -1}}) // Más nuevo primero
+		case "viejo":
+			opts.SetSort(bson.D{{Key: "created_at", Value: 1}}) // Más viejo primero
+		}
+	}
+
+	// Ordenar por kilometraje
+	if sort := r.URL.Query().Get("sort_km"); sort != "" {
+		switch sort {
+		case "mayor":
+			opts.SetSort(bson.D{{Key: "kilometraje", Value: -1}}) // Más kilómetros primero
+		case "menor":
+			opts.SetSort(bson.D{{Key: "kilometraje", Value: 1}}) // Menos kilómetros primero
+		}
+	}
+
 	collection := db.Collection("autos")
-	cursor, err := collection.Find(context.Background(), filter)
+	cursor, err := collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		http.Error(w, "Error al obtener los autos", http.StatusInternalServerError)
 		return
