@@ -1,6 +1,6 @@
-# Project go-gorilla-autos
+# Gorilla Autos Usados
 
-One Paragraph of project description goes here
+API REST para gestión de autos usados desarrollada en Go con Fiber y MongoDB. Incluye sistema de reservas, descuentos y panel de administración.
 
 ## Getting Started
 
