@@ -33,6 +33,7 @@ func parseInt(s string, fieldName string) (int, bool) {
 }
 
 // parseFloat safely parses a float from string, logging errors
+// Returns the parsed value and true if successful, 0 and false otherwise
 func parseFloat(s string, fieldName string) (float64, bool) {
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
