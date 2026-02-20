@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	"time"
 )
@@ -178,4 +179,17 @@ func ValidateStockID(stockID string) error {
 		return fmt.Errorf("stock_id inválido: debe ser una letra mayúscula seguida de dos números")
 	}
 	return nil
+}
+
+// GenerarIDReserva genera un ID aleatorio para la reserva (formato: letra + 3 números)
+func GenerarIDReserva() string {
+	rand.Seed(time.Now().UnixNano())
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	numbers := "0123456789"
+
+	id := string(letters[rand.Intn(len(letters))]) // Letra aleatoria
+	for i := 0; i < 3; i++ {
+		id += string(numbers[rand.Intn(len(numbers))]) // Tres números aleatorios
+	}
+	return id
 }

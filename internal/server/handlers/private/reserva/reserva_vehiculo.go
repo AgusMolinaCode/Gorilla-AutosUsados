@@ -3,9 +3,7 @@ package reserva
 import (
 	"context"
 	"encoding/json"
-	"math/rand"
 	"net/http"
-	"time"
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
@@ -24,19 +22,6 @@ type Reserva struct {
 	FechaHora  time.Time `json:"fecha_hora"`
 }
 
-// GenerarIDReserva genera un ID aleatorio para la reserva
-func GenerarIDReserva() string {
-	rand.Seed(time.Now().UnixNano())
-	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	numbers := "0123456789"
-
-	id := string(letters[rand.Intn(len(letters))]) // Letra aleatoria
-	for i := 0; i < 3; i++ {
-		id += string(numbers[rand.Intn(len(numbers))]) // Tres números aleatorios
-	}
-	return id
-}
-
 // CrearReservaHandler maneja la creación de una nueva reserva
 func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
 	w.Header().Set("Content-Type", "application/json")
@@ -50,7 +35,7 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 	}
 
 	// Generar un ID aleatorio para la reserva
-	reserva.ID = GenerarIDReserva()
+	reserva.ID = models.GenerarIDReserva()
 
 	// Validaciones básicas
 	if reserva.Nombre == "" || reserva.Apellido == "" {
