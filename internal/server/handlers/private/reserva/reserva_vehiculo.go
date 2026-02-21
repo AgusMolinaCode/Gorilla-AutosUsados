@@ -12,14 +12,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// Reserva representa la información de una reserva
-type Reserva struct {
-	ID         string    `json:"id" bson:"id"`
-	Nombre     string    `json:"nombre"`
-	Apellido   string    `json:"apellido"`
-	Telefono   string    `json:"telefono"`
-	Comentario string    `json:"comentario"`
-	FechaHora  time.Time `json:"fecha_hora"`
+// writeJSONResponse escribe una respuesta JSON con el código de estado especificado
+func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Si falla la codificación, intentar escribir error simple
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // CrearReservaHandler maneja la creación de una nueva reserva
@@ -72,8 +71,7 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 		"reserva":        reserva,
 		"total_reservas": len(auto.Reservas),
 	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusCreated, response)
 }
 
 func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
@@ -120,7 +118,7 @@ func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.
 	response := map[string]interface{}{
 		"mensaje": "Reserva eliminada exitosamente",
 	}
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
@@ -176,7 +174,7 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 		"mensaje": "Reserva actualizada exitosamente",
 		"reserva": reservaEncontrada,
 	}
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // ObtenerReservasHandler obtiene todas las reservaciones de un auto
@@ -211,7 +209,7 @@ func ObtenerReservasHandler(w http.ResponseWriter, r *http.Request, db database.
 			"reservas": []models.Reserva{},
 			"stock_id": stockID,
 		}
-		json.NewEncoder(w).Encode(response)
+		writeJSONResponse(w, http.StatusOK, response)
 		return
 	}
 
@@ -223,5 +221,5 @@ func ObtenerReservasHandler(w http.ResponseWriter, r *http.Request, db database.
 		"total":    len(auto.Reservas),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
