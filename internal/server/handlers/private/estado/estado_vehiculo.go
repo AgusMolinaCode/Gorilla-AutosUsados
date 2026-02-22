@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
@@ -11,6 +12,14 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+// writeJSONResponse escribe una respuesta JSON con el código de estado especificado
+func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
+}
 
 // TODO:"Disponible" "En negociación" "Reservado" "Vendido" "En mantenimiento"
 
@@ -43,7 +52,7 @@ func CambiarEstadoAutoHandler(w http.ResponseWriter, r *http.Request, db databas
 
 	// Validar estado
 	validStates := []string{"disponible", "reservado", "vendido", "en negociación", "en mantenimiento"}
-	if !contains(validStates, estadoRequest.Estado) {
+	if !slices.Contains(validStates, estadoRequest.Estado) {
 		http.Error(w, "Estado inválido", http.StatusBadRequest)
 		return
 	}
@@ -84,15 +93,5 @@ func CambiarEstadoAutoHandler(w http.ResponseWriter, r *http.Request, db databas
 		"estado":  estadoRequest.Estado,
 	}
 
-	json.NewEncoder(w).Encode(response)
-}
-
-// Helper function to check if a slice contains a value
-func contains(slice []string, item string) bool {
-	for _, a := range slice {
-		if a == item {
-			return true
-		}
-	}
-	return false
+	writeJSONResponse(w, http.StatusOK, response)
 }
