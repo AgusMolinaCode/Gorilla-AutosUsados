@@ -1,15 +1,14 @@
 package reserva
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
+	publicReserva "go-gorilla-autos/internal/server/handlers/public/reserva"
 
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 // writeJSONResponse escribe una respuesta JSON con el código de estado especificado
@@ -29,7 +28,7 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 
 	var reserva models.Reserva
 	if err := json.NewDecoder(r.Body).Decode(&reserva); err != nil {
-		http.Error(w, "Error al decodificar el JSON", http.StatusBadRequest)
+		publicReserva.WriteErrorResponse(w, http.StatusBadRequest, "Error al decodificar el JSON")
 		return
 	}
 
@@ -38,31 +37,29 @@ func CrearReservaHandler(w http.ResponseWriter, r *http.Request, db database.Ser
 
 	// Validaciones básicas
 	if reserva.Nombre == "" || reserva.Apellido == "" {
-		http.Error(w, "Nombre y apellido son requeridos", http.StatusBadRequest)
+		publicReserva.WriteErrorResponse(w, http.StatusBadRequest, "Nombre y apellido son requeridos")
 		return
 	}
 
 	if reserva.FechaHora.IsZero() {
-		http.Error(w, "Fecha y hora de reserva son requeridas", http.StatusBadRequest)
+		publicReserva.WriteErrorResponse(w, http.StatusBadRequest, "Fecha y hora de reserva son requeridas")
 		return
 	}
 
-	collection := db.Collection("autos")
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
+	// Usar helper del paquete público para buscar auto
+	result := publicReserva.FindAutoByStockID(r.Context(), db, stockID)
+	if !result.Found {
+		publicReserva.WriteNotFoundResponse(w, "Auto no encontrado")
 		return
 	}
+	auto := result.Auto
 
 	// Agregar la nueva reserva
 	auto.Reservas = append(auto.Reservas, reserva)
 
-	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, "Error al actualizar las reservas", http.StatusInternalServerError)
+	// Usar helper del paquete público para actualizar
+	if err := publicReserva.UpdateAutoReservas(r.Context(), db, stockID, auto.Reservas); err != nil {
+		publicReserva.WriteErrorResponse(w, http.StatusInternalServerError, "Error al actualizar las reservas")
 		return
 	}
 
@@ -80,14 +77,13 @@ func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.
 	stockID := vars["stock_id"]
 	reservaID := vars["reserva_id"]
 
-	collection := db.Collection("autos")
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
+	// Usar helper del paquete público para buscar auto
+	result := publicReserva.FindAutoByStockID(r.Context(), db, stockID)
+	if !result.Found {
+		publicReserva.WriteNotFoundResponse(w, "Auto no encontrado")
 		return
 	}
+	auto := result.Auto
 
 	// Buscar la reserva por ID
 	var indexToDelete int
@@ -101,17 +97,16 @@ func EliminarReservaHandler(w http.ResponseWriter, r *http.Request, db database.
 	}
 
 	if !found {
-		http.Error(w, "Reserva no encontrada", http.StatusNotFound)
+		publicReserva.WriteNotFoundResponse(w, "Reserva no encontrada")
 		return
 	}
 
 	// Eliminar la reserva
 	auto.Reservas = append(auto.Reservas[:indexToDelete], auto.Reservas[indexToDelete+1:]...)
 
-	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, "Error al actualizar las reservas", http.StatusInternalServerError)
+	// Usar helper del paquete público para actualizar
+	if err := publicReserva.UpdateAutoReservas(r.Context(), db, stockID, auto.Reservas); err != nil {
+		publicReserva.WriteErrorResponse(w, http.StatusInternalServerError, "Error al actualizar las reservas")
 		return
 	}
 
@@ -129,18 +124,17 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 
 	var nuevaReserva models.Reserva
 	if err := json.NewDecoder(r.Body).Decode(&nuevaReserva); err != nil {
-		http.Error(w, "Error al decodificar el JSON", http.StatusBadRequest)
+		publicReserva.WriteErrorResponse(w, http.StatusBadRequest, "Error al decodificar el JSON")
 		return
 	}
 
-	collection := db.Collection("autos")
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
+	// Usar helper del paquete público para buscar auto
+	result := publicReserva.FindAutoByStockID(r.Context(), db, stockID)
+	if !result.Found {
+		publicReserva.WriteNotFoundResponse(w, "Auto no encontrado")
 		return
 	}
+	auto := result.Auto
 
 	// Buscar la reserva por ID
 	var reservaEncontrada *models.Reserva
@@ -152,7 +146,7 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 	}
 
 	if reservaEncontrada == nil {
-		http.Error(w, "Reserva no encontrada", http.StatusNotFound)
+		publicReserva.WriteNotFoundResponse(w, "Reserva no encontrada")
 		return
 	}
 
@@ -163,10 +157,9 @@ func EditarReservaHandler(w http.ResponseWriter, r *http.Request, db database.Se
 	reservaEncontrada.Comentario = nuevaReserva.Comentario
 	reservaEncontrada.FechaHora = nuevaReserva.FechaHora
 
-	update := bson.M{"$set": bson.M{"reservas": auto.Reservas}}
-	_, err = collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		http.Error(w, "Error al actualizar las reservas", http.StatusInternalServerError)
+	// Usar helper del paquete público para actualizar
+	if err := publicReserva.UpdateAutoReservas(r.Context(), db, stockID, auto.Reservas); err != nil {
+		publicReserva.WriteErrorResponse(w, http.StatusInternalServerError, "Error al actualizar las reservas")
 		return
 	}
 
@@ -187,20 +180,17 @@ func ObtenerReservasHandler(w http.ResponseWriter, r *http.Request, db database.
 
 	// Validar formato de stock_id
 	if err := models.ValidateStockID(stockID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		publicReserva.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	collection := db.Collection("autos")
-
-	// Buscar el auto por stock_id
-	var auto models.Auto
-	filter := bson.M{"stock_id": stockID}
-	err := collection.FindOne(context.Background(), filter).Decode(&auto)
-	if err != nil {
-		http.Error(w, "Auto no encontrado", http.StatusNotFound)
+	// Usar helper del paquete público para buscar auto
+	result := publicReserva.FindAutoByStockID(r.Context(), db, stockID)
+	if !result.Found {
+		publicReserva.WriteNotFoundResponse(w, "Auto no encontrado")
 		return
 	}
+	auto := result.Auto
 
 	// Verificar si hay reservas
 	if len(auto.Reservas) == 0 {
