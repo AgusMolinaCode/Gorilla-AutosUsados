@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
@@ -22,141 +21,94 @@ func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) 
 	}
 }
 
-// parseInt safely parses an integer from string, logging errors
-func parseInt(s string, fieldName string) (int, bool) {
-	val, err := strconv.Atoi(s)
-	if err != nil {
-		log.Printf("Invalid %s value '%s': %v", fieldName, s, err)
-		return 0, false
-	}
-	return val, true
-}
-
-// parseFloat safely parses a float from string, logging errors
-// Returns the parsed value and true if successful, 0 and false otherwise
-func parseFloat(s string, fieldName string) (float64, bool) {
-	val, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		log.Printf("Invalid %s value '%s': %v", fieldName, s, err)
-		return 0, false
-	}
-	return val, true
-}
-
 func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
 	w.Header().Set("Content-Type", "application/json")
+
+	// Usar el parser de query params
+	qp := NewQueryParser(r)
 
 	filter := bson.M{}
 
 	// Filtrar por marca (case insensitive y coincidencias parciales)
-	if marca := r.URL.Query().Get("marca"); marca != "" {
+	if marca := qp.GetString("marca"); marca != "" {
 		filter["marca"] = bson.M{"$regex": "^" + marca, "$options": "i"}
 	}
 
 	// Filtrar por modelo (case insensitive y coincidencias parciales)
-	if modelo := r.URL.Query().Get("modelo"); modelo != "" {
+	if modelo := qp.GetString("modelo"); modelo != "" {
 		filter["modelo"] = bson.M{"$regex": "^" + modelo, "$options": "i"}
 	}
 
 	// Filtrar por tipo de combustible
-	if combustible := r.URL.Query().Get("combustible"); combustible != "" {
+	if combustible := qp.GetString("combustible"); combustible != "" {
 		filter["tipo_combustible"] = bson.M{"$regex": "^" + combustible, "$options": "i"}
 	}
 
 	// Filtrar por año
-	if año := r.URL.Query().Get("año"); año != "" {
-		if añoInt, ok := parseInt(año, "año"); ok {
-			filter["año"] = añoInt
-		}
+	if año := qp.GetInt("año"); año > 0 {
+		filter["año"] = año
 	}
 
 	// Filtrar por kilometraje específico
-	if km := r.URL.Query().Get("kilometraje"); km != "" {
-		if kmInt, ok := parseInt(km, "kilometraje"); ok {
-			filter["kilometraje"] = kmInt
-		}
+	if km := qp.GetInt("kilometraje"); km > 0 {
+		filter["kilometraje"] = km
 	}
 
 	// Filtrar por rango de kilometraje
 	kmFilter := bson.M{}
-	if kmMin := r.URL.Query().Get("km_min"); kmMin != "" {
-		if kmMinInt, ok := parseInt(kmMin, "km_min"); ok {
-			kmFilter["$gte"] = kmMinInt
-		}
+	if kmMin := qp.GetInt("km_min"); kmMin > 0 {
+		kmFilter["$gte"] = kmMin
 	}
-	if kmMax := r.URL.Query().Get("km_max"); kmMax != "" {
-		if kmMaxInt, ok := parseInt(kmMax, "km_max"); ok {
-			kmFilter["$lte"] = kmMaxInt
-		}
+	if kmMax := qp.GetInt("km_max"); kmMax > 0 {
+		kmFilter["$lte"] = kmMax
 	}
 	if len(kmFilter) > 0 {
 		filter["kilometraje"] = kmFilter
 	}
 
 	// Filtrar por precio específico
-	if precio := r.URL.Query().Get("precio"); precio != "" {
-		if precioFloat, ok := parseFloat(precio, "precio"); ok {
-			filter["precio"] = precioFloat
-		}
+	if precio := qp.GetFloat("precio"); precio > 0 {
+		filter["precio"] = precio
 	}
 
 	// Filtrar por rango de precios
 	precioFilter := bson.M{}
-	if precioMin := r.URL.Query().Get("precio_min"); precioMin != "" {
-		if precioMinFloat, ok := parseFloat(precioMin, "precio_min"); ok {
-			precioFilter["$gte"] = precioMinFloat
-		}
+	if precioMin := qp.GetFloat("precio_min"); precioMin > 0 {
+		precioFilter["$gte"] = precioMin
 	}
-	if precioMax := r.URL.Query().Get("precio_max"); precioMax != "" {
-		if precioMaxFloat, ok := parseFloat(precioMax, "precio_max"); ok {
-			precioFilter["$lte"] = precioMaxFloat
-		}
+	if precioMax := qp.GetFloat("precio_max"); precioMax > 0 {
+		precioFilter["$lte"] = precioMax
 	}
 	if len(precioFilter) > 0 {
 		filter["precio"] = precioFilter
 	}
 
 	// Filtrar por autos destacados
-	if destacado := r.URL.Query().Get("destacado"); destacado == "true" {
+	if qp.GetString("destacado") == "true" {
 		filter["featured"] = true
 	}
 
 	// Filtrar por autos con descuento
-	if descuento := r.URL.Query().Get("descuento"); descuento == "true" {
-		filter["descuento"] = bson.M{"$gt": 0} // Solo autos con descuento mayor a 0
+	if qp.GetString("descuento") == "true" {
+		filter["descuento"] = bson.M{"$gt": 0}
 	}
 
 	// Configurar las opciones de ordenamiento
 	opts := options.Find()
 
 	// Ordenar por precio
-	if sort := r.URL.Query().Get("sort_precio"); sort != "" {
-		switch sort {
-		case "asc":
-			opts.SetSort(bson.D{{Key: "precio", Value: 1}}) // Orden ascendente
-		case "desc":
-			opts.SetSort(bson.D{{Key: "precio", Value: -1}}) // Orden descendente
-		}
+	if sortOrder := qp.GetSortOrder("sort_precio", "asc", "desc"); sortOrder != 0 {
+		opts.SetSort(bson.D{{Key: "precio", Value: sortOrder}})
 	}
 
 	// Ordenar por fecha de publicación
-	if sort := r.URL.Query().Get("sort_fecha"); sort != "" {
-		switch sort {
-		case "nuevo":
-			opts.SetSort(bson.D{{Key: "created_at", Value: -1}}) // Más nuevo primero
-		case "viejo":
-			opts.SetSort(bson.D{{Key: "created_at", Value: 1}}) // Más viejo primero
-		}
+	if sortOrder := qp.GetSortOrder("sort_fecha", "viejo", "nuevo"); sortOrder != 0 {
+		opts.SetSort(bson.D{{Key: "created_at", Value: -sortOrder}})
 	}
 
 	// Ordenar por kilometraje
-	if sort := r.URL.Query().Get("sort_km"); sort != "" {
-		switch sort {
-		case "mayor":
-			opts.SetSort(bson.D{{Key: "kilometraje", Value: -1}}) // Más kilómetros primero
-		case "menor":
-			opts.SetSort(bson.D{{Key: "kilometraje", Value: 1}}) // Menos kilómetros primero
-		}
+	if sortOrder := qp.GetSortOrder("sort_km", "menor", "mayor"); sortOrder != 0 {
+		opts.SetSort(bson.D{{Key: "kilometraje", Value: sortOrder}})
 	}
 
 	collection := db.Collection("autos")
