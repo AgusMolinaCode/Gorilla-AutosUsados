@@ -7,18 +7,11 @@ import (
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
+	"go-gorilla-autos/internal/server/handlers/helpers"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 )
-
-// writeJSONResponse escribe una respuesta JSON con el código de estado especificado
-func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-	}
-}
 
 // AplicarDescuentoHandler aplica un descuento a un auto
 func AplicarDescuentoHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
@@ -102,7 +95,7 @@ func AplicarDescuentoHandler(w http.ResponseWriter, r *http.Request, db database
 		"precio_con_descuento": precioConDescuento,
 	}
 
-	writeJSONResponse(w, http.StatusOK, response)
+	helpers.JSONResponse(w, http.StatusOK, response)
 }
 
 // EliminarDescuentoHandler elimina el descuento de un auto
@@ -158,5 +151,5 @@ func EliminarDescuentoHandler(w http.ResponseWriter, r *http.Request, db databas
 		"descuento":       0,
 	}
 
-	writeJSONResponse(w, http.StatusOK, response)
+	helpers.JSONResponse(w, http.StatusOK, response)
 }

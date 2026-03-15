@@ -8,18 +8,11 @@ import (
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
+	"go-gorilla-autos/internal/server/handlers/helpers"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-// writeJSONResponse escribe una respuesta JSON con el código de estado especificado
-func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
-}
 
 func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
 	w.Header().Set("Content-Type", "application/json")
@@ -115,9 +108,7 @@ func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service
 	cursor, err := collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		log.Printf("Error fetching autos from database: %v", err)
-		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{
-			"error": "Error al obtener los autos",
-		})
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, "Error al obtener los autos")
 		return
 	}
 	defer cursor.Close(context.Background())
@@ -125,20 +116,16 @@ func GetAutosHandler(w http.ResponseWriter, r *http.Request, db database.Service
 	var autos []models.Auto
 	if err = cursor.All(context.Background(), &autos); err != nil {
 		log.Printf("Error decoding autos: %v", err)
-		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{
-			"error": "Error al decodificar los autos",
-		})
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, "Error al decodificar los autos")
 		return
 	}
 
 	if len(autos) == 0 {
-		writeJSONResponse(w, http.StatusNotFound, map[string]string{
-			"mensaje": "No se encontraron autos con los filtros especificados",
-		})
+		helpers.JSONErrorResponse(w, http.StatusNotFound, "No se encontraron autos con los filtros especificados")
 		return
 	}
 
-	writeJSONResponse(w, http.StatusOK, autos)
+	helpers.JSONResponse(w, http.StatusOK, autos)
 }
 
 // GetFeaturedAutosHandler obtiene los autos marcados como destacados
@@ -152,9 +139,7 @@ func GetFeaturedAutosHandler(w http.ResponseWriter, r *http.Request, db database
 	cursor, err := collection.Find(context.Background(), filter)
 	if err != nil {
 		log.Printf("Error fetching featured autos: %v", err)
-		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{
-			"error": "Error al obtener los autos destacados",
-		})
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, "Error al obtener los autos destacados")
 		return
 	}
 	defer cursor.Close(context.Background())
@@ -162,18 +147,14 @@ func GetFeaturedAutosHandler(w http.ResponseWriter, r *http.Request, db database
 	var autos []models.Auto
 	if err = cursor.All(context.Background(), &autos); err != nil {
 		log.Printf("Error decoding featured autos: %v", err)
-		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{
-			"error": "Error al decodificar los autos",
-		})
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, "Error al decodificar los autos")
 		return
 	}
 
 	if len(autos) == 0 {
-		writeJSONResponse(w, http.StatusNotFound, map[string]string{
-			"mensaje": "No hay autos destacados disponibles",
-		})
+		helpers.JSONErrorResponse(w, http.StatusNotFound, "No hay autos destacados disponibles")
 		return
 	}
 
-	writeJSONResponse(w, http.StatusOK, autos)
+	helpers.JSONResponse(w, http.StatusOK, autos)
 }

@@ -8,20 +8,14 @@ import (
 
 	"go-gorilla-autos/internal/database"
 	"go-gorilla-autos/internal/database/models"
+	"go-gorilla-autos/internal/server/handlers/helpers"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// writeJSONResponse escribe una respuesta JSON con el código de estado especificado
-func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-	}
-}
-
-// TODO:"Disponible" "En negociación" "Reservado" "Vendido" "En mantenimiento"
+// Estados válidos: "Disponible", "En negociación", "Reservado", "Vendido", "En mantenimiento"
+// TODO: Validar que el estado recibido coincida con los estados definidos arriba
 
 // CambiarEstadoAutoHandler cambia el estado de un auto
 func CambiarEstadoAutoHandler(w http.ResponseWriter, r *http.Request, db database.Service) {
@@ -93,5 +87,5 @@ func CambiarEstadoAutoHandler(w http.ResponseWriter, r *http.Request, db databas
 		"estado":  estadoRequest.Estado,
 	}
 
-	writeJSONResponse(w, http.StatusOK, response)
+	helpers.JSONResponse(w, http.StatusOK, response)
 }
